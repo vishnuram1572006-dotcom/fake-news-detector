@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake News Detector</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #1e293b;
+            padding: 32px 20px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .header h1 span {
+            color: #ef4444;
+        }
+
+        .header p {
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            margin-top: 16px;
+        }
+
+        input[type=text],
+        textarea {
+            width: 100%;
+            padding: 14px 16px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            color: #f1f5f9;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        input[type=text]:focus,
+        textarea:focus {
+            border-color: #6366f1;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 160px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: #4f46e5;
+        }
+
+        .btn:disabled {
+            background: #334155;
+            cursor: not-allowed;
+        }
+
+        .result-card {
+            display: none;
+        }
+
+        .verdict-box {
+            text-align: center;
+            padding: 32px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .verdict-fake {
+            background: rgba(239, 68, 68, 0.15);
+            border: 2px solid #ef4444;
+        }
+
+        .verdict-real {
+            background: rgba(34, 197, 94, 0.15);
+            border: 2px solid #22c55e;
+        }
+
+        .verdict-label {
+            font-size: 2.8rem;
+            font-weight: 800;
+            letter-spacing: 3px;
+        }
+
+        .verdict-fake .verdict-label {
+            color: #ef4444;
+        }
+
+        .verdict-real .verdict-label {
+            color: #22c55e;
+        }
+
+        .confidence {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        .agents-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .agent-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .agent-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .agent-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .high {
+            color: #ef4444;
+        }
+
+        .medium {
+            color: #f59e0b;
+        }
+
+        .low {
+            color: #22c55e;
+        }
+
+        .verified {
+            color: #22c55e;
+        }
+
+        .unverified {
+            color: #ef4444;
+        }
+
+        .partial {
+            color: #f59e0b;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 0.73rem;
+            font-weight: 500;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .source-item {
+            padding: 10px 14px;
+            background: #1e293b;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            border-left: 3px solid #334155;
+        }
+
+        .source-item.trusted {
+            border-left-color: #22c55e;
+        }
+
+        .source-item.flagged {
+            border-left-color: #ef4444;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #334155;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 16px;
+            text-align: left;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .step {
+            font-size: 0.88rem;
+            color: #64748b;
+        }
+
+        .step.active {
+            color: #6366f1;
+            font-weight: 600;
+        }
+
+        .step.done {
+            color: #22c55e;
+        }
+
+        .bar-wrap {
+            height: 6px;
+            background: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Fake News <span>Detector</span></h1>
+        <p>Multi-agent AI — ML model + emotion analysis + real-time fact checking</p>
+    </div>
+    <div class="container">
+        <div class="card">
+            <label>Article Title</label>
+            <input type="text" id="title" placeholder="Enter the news headline...">
+            <label>Article Text</label>
+            <textarea id="text" placeholder="Paste the full article text here..."></textarea>
+            <button class="btn" onclick="analyze()" id="btn">Analyze Article</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="color:#94a3b8">Analyzing article...</p>
+            <div class="steps">
+                <div class="step" id="s1">Running ML model...</div>
+                <div class="step" id="s2">Analyzing emotion and credibility...</div>
+                <div class="step" id="s3">Checking Google Fact Check...</div>
+                <div class="step" id="s4">Verifying with news sources...</div>
+            </div>
+        </div>
+
+        <div class="result-card card" id="result">
+            <div class="verdict-box" id="verdictBox">
+                <div class="verdict-label" id="verdictLabel"></div>
+                <div class="confidence" id="verdictConf"></div>
+                <div style="margin-top:10px;font-size:0.88rem;color:#94a3b8" id="verdictSub"></div>
+            </div>
+
+            <div class="agents-grid">
+                <div class="agent-card">
+                    <div class="agent-title">ML Model</div>
+                    <div class="agent-value" id="mlVal"></div>
+                    <div style="font-size:0.8rem;color:#64748b;margin-top:4px" id="mlSub"></div>
+                    <div class="bar-wrap">
+                        <div class="bar-fill" id="mlBar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="agent-card">
+                    <div class="agent-title">Emotion Agent</div>
+                    <div class="agent-value" id="emVal"></div>
+                    <div class="tags" id="emTags"></div>
+                </div>
+                <div class="agent-card">
+                    <div class="agent-title">Credibility Agent</div>
+                    <div class="agent-value" id="crVal"></div>
+                    <div style="font-size:0.8rem;color:#64748b;margin-top:4px" id="crSub"></div>
+                </div>
+                <div class="agent-card">
+                    <div class="agent-title">Claim Agent</div>
+                    <div class="agent-value" id="clVal"></div>
+                    <div style="font-size:0.8rem;color:#64748b;margin-top:4px" id="clSub"></div>
+                </div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-title">Google Fact Check</div>
+                <div class="agent-value" id="fcVal"></div>
+                <div id="fcSources" style="margin-top:12px"></div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-title">News Source Verification</div>
+                <div class="agent-value" id="nvVal"></div>
+                <div id="nvSources" style="margin-top:12px"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function step(n) {
+            for (let i = 1; i <= 4; i++) {
+                let e = document.getElementById('s' + i);
+                if (i < n) e.className = 'step done';
+                else if (i === n) e.className = 'step active';
+                else e.className = 'step';
+            }
+        }
+        function cls(level) {
+            if (!level) return '';
+            const l = level.toUpperCase();
+            if (l.includes('HIGH') || l.includes('FALSE') || l.includes('UNVERIFIED')) return 'high';
+            if (l.includes('MEDIUM') || l.includes('PARTIAL') || l.includes('DISPUTED')) return 'medium';
+            return 'low';
+        }
+        async function analyze() {
+            const title = document.getElementById('title').value.trim();
+            const text = document.getElementById('text').value.trim();
+            if (!title && !text) { alert('Please enter a title or article text.'); return; }
+            document.getElementById('btn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            step(1); await sleep(500);
+            step(2); await sleep(500);
+            step(3);
+            try {
+                const res = await fetch('/analyze', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, text })
+                });
+                step(4); await sleep(300);
+                const d = await res.json();
+                render(d);
+            } catch (e) { alert('Error: ' + e.message); }
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('btn').disabled = false;
+        }
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function render(d) {
+            const fake = d.ml.label === 'FAKE';
+            document.getElementById('verdictBox').className = 'verdict-box ' + (fake ? 'verdict-fake' : 'verdict-real');
+            document.getElementById('verdictLabel').textContent = fake ? 'FAKE NEWS' : 'REAL NEWS';
+            document.getElementById('verdictConf').textContent = d.ml.confidence + '% confidence';
+            document.getElementById('verdictSub').textContent =
+                'Emotion: ' + d.features.emotion.emotion_level +
+                '  |  Credibility: ' + d.features.credibility.credibility_level +
+                '  |  API: ' + d.api.api_verdict;
+
+            const mc = fake ? '#ef4444' : '#22c55e';
+            document.getElementById('mlVal').textContent = d.ml.label;
+            document.getElementById('mlVal').style.color = mc;
+            document.getElementById('mlSub').textContent = 'Fake: ' + d.ml.fake_prob + '%  Real: ' + d.ml.real_prob + '%';
+            const bar = document.getElementById('mlBar');
+            bar.style.width = d.ml.fake_prob + '%'; bar.style.background = mc;
+
+            const em = d.features.emotion;
+            document.getElementById('emVal').textContent = em.emotion_level + ' (' + em.emotion_score + '/10)';
+            document.getElementById('emVal').className = 'agent-value ' + cls(em.emotion_level);
+            document.getElementById('emTags').innerHTML =
+                (em.detected_phrases || []).slice(0, 5).map(p => '<span class="tag">' + p + '</span>').join('');
+
+            const cr = d.features.credibility;
+            document.getElementById('crVal').textContent = cr.credibility_level + ' (' + cr.credibility_score + '/10)';
+            document.getElementById('crVal').className = 'agent-value ' + cls(cr.credibility_level);
+            document.getElementById('crSub').textContent = 'Words: ' + cr.word_count + (cr.credible_sources.length ? ' | ' + cr.credible_sources.join(', ') : '');
+
+            const cl = d.features.claims;
+            document.getElementById('clVal').textContent = cl.claim_risk_level + ' risk';
+            document.getElementById('clVal').className = 'agent-value ' + cls(cl.claim_risk_level);
+            document.getElementById('clSub').textContent = cl.claim_count + ' claims' + (cl.health_flags.length ? ' | ' + cl.health_flags.join(', ') : '');
+
+            const fc = d.api.fact_check;
+            document.getElementById('fcVal').textContent = fc.verdict || fc.status || 'No results';
+            document.getElementById('fcVal').className = 'agent-value ' + cls(fc.verdict || '');
+            document.getElementById('fcSources').innerHTML =
+                (fc.results || []).map(r => '<div class="source-item ' + (r.rating.toLowerCase().includes('false') ? 'flagged' : '') + '"><strong>' + r.publisher + '</strong> — ' + r.rating + '<br><small style="color:#64748b">' + r.claim_text.slice(0, 90) + '</small></div>').join('')
+                || '<div style="color:#64748b;font-size:0.85rem">No matching fact-checks found</div>';
+
+            const nv = d.api.news_verify;
+            document.getElementById('nvVal').textContent = nv.verification || nv.status || 'No results';
+            document.getElementById('nvVal').className = 'agent-value ' + (nv.verification === 'VERIFIED' ? 'verified' : nv.verification === 'PARTIALLY VERIFIED' ? 'partial' : 'unverified');
+            document.getElementById('nvSources').innerHTML =
+                (nv.articles || []).map(a => '<div class="source-item ' + (a.trusted ? 'trusted' : '') + '"><strong>' + a.source + '</strong>' + (a.trusted ? ' ✓' : '') + '<br><small style="color:#64748b">' + a.title.slice(0, 90) + '</small></div>').join('')
+                || '<div style="color:#64748b;font-size:0.85rem">No matching news sources found</div>';
+        }
+    </script>
+</body>
+
+</html>
